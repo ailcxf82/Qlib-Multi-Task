@@ -45,6 +45,7 @@ class RankICDynamicWeighter:
         ic_series = ic_series.dropna().tail(self.window)
         if len(ic_series) < 2:
             return 0.0
+        # 按半衰期生成指数衰减权重，越近的 IC 权重越大
         weights = np.array([0.5 ** (i / max(1, self.half_life - 1)) for i in range(len(ic_series))])[::-1]
         weights /= weights.sum()
         mean = np.sum(ic_series.values * weights)
@@ -71,7 +72,7 @@ class RankICDynamicWeighter:
 
     def blend(self, preds: Dict[str, pd.Series], weights: Dict[str, float]) -> pd.Series:
         """依据权重融合预测结果。"""
-        combined = None
+        combined = None  # 逐个累加，保持索引对齐
         for name, series in preds.items():
             w = weights.get(name, 0.0)
             contrib = series * w

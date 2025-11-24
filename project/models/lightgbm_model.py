@@ -41,7 +41,13 @@ class LightGBMModelWrapper:
         valid_feat: Optional[pd.DataFrame] = None,
         valid_label: Optional[pd.Series] = None,
     ):
-        segments = {"train": (train_feat.index.get_level_values("datetime").min(), train_feat.index.get_level_values("datetime").max())}
+        # 通过 PandasDataset 向 qlib 声明训练/验证时间切片
+        segments = {
+            "train": (
+                train_feat.index.get_level_values("datetime").min(),
+                train_feat.index.get_level_values("datetime").max(),
+            )
+        }
         features = train_feat
         labels = train_label
         has_valid = (
@@ -71,6 +77,7 @@ class LightGBMModelWrapper:
             raise RuntimeError("模型尚未训练")
         values = feat.values
         preds = self.booster.predict(values)
+        # pred_leaf=True 返回每棵树的叶子编号，用作二级模型输入
         leaf_index = self.booster.predict(values, pred_leaf=True)
         return pd.Series(preds, index=feat.index, name="lgb_pred"), leaf_index
 

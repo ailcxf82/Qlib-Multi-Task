@@ -53,6 +53,7 @@ class MLPRegressor:
         self._input_dim: Optional[int] = None
 
     def _tensorize(self, feat: pd.DataFrame, label: Optional[pd.Series] = None) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        # 直接将 pandas 数据转换为 tensor，便于组建 TensorDataset
         x = torch.tensor(feat.values, dtype=torch.float32)
         y = torch.tensor(label.values, dtype=torch.float32).unsqueeze(-1) if label is not None else None
         return x, y
@@ -83,6 +84,7 @@ class MLPRegressor:
         batch_size = self.config.get("batch_size", 1024)
         max_epochs = self.config.get("max_epochs", 20)
         patience = self.config.get("patience", 5)
+        # 提前停止监控
         best_loss = float("inf")
         wait = 0
         best_state = None

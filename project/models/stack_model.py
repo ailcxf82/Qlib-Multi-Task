@@ -26,6 +26,7 @@ class LeafStackModel:
         cfg = load_yaml_config(config_path)
         self.config = cfg.get("stack", cfg)
         self.alpha = self.config.get("alpha", 0.5)
+        # 叶子编号是稀疏离散变量，采用 OneHotEncoder 映射为稠密特征
         self.encoder = OneHotEncoder(handle_unknown="ignore", sparse_output=False, dtype=np.float32)
         self.feature_names: Optional[list[str]] = None
         self.mlp = MLPRegressor({"model": {k: v for k, v in self.config.items() if k != "alpha"}})
@@ -57,11 +58,13 @@ class LeafStackModel:
         self.mlp.fit(train_df, train_residual, valid_df, valid_residual)
 
     def predict_residual(self, leaf: np.ndarray, index: pd.Index) -> pd.Series:
+        # 线上阶段只需 transform（不再 fit）
         encoded = self.encoder.transform(leaf)
         feat_df = self._to_frame(encoded, index)
         return self.mlp.predict(feat_df)
 
     def fuse(self, lgb_pred: pd.Series, residual_pred: pd.Series) -> pd.Series:
+        # 通过 residual 学习补充 LGB 的结构化短板
         return lgb_pred + residual_pred * self.alpha
 
     def save(self, output_dir: str, model_name: str):
@@ -91,6 +94,7 @@ class LeafStackModel:
         self.alpha = meta.get("alpha", self.alpha)
         self.encoder.categories_ = [np.array(cat) for cat in meta["categories"]]
         self.encoder.n_features_in_ = len(self.encoder.categories_)
+        # sklearn OneHotEncoder 在推理阶段需要补回 feature_names_in_ 等属性
         self.encoder.feature_names_in_ = np.array([f"tree_{i}" for i in range(self.encoder.n_features_in_)])
         self.encoder.drop_idx_ = None
         self.encoder.sparse_output_ = False

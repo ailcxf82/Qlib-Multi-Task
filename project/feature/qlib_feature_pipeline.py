@@ -34,7 +34,9 @@ class QlibFeaturePipeline:
 
     def _init_qlib(self):
         qlib_cfg = self.config.get("qlib", {})
-        
+        if qlib.is_initialized():
+            # 在 notebook/调试环境中可能重复调用，避免重复初始化
+            return
         logger.info("初始化 qlib，数据目录: %s", qlib_cfg.get("provider_uri"))
         qlib.init(
             provider_uri=qlib_cfg.get("provider_uri"),
@@ -59,6 +61,7 @@ class QlibFeaturePipeline:
         label_series = label_panel.iloc[:, 0].rename("label")
 
         # 基础对齐
+        # inner join + dropna 保证特征、标签完全对齐
         combined = feature_panel.join(label_series, how="inner").dropna()
         features = combined.drop(columns=["label"])
         label = combined["label"]
@@ -73,6 +76,7 @@ class QlibFeaturePipeline:
     def _fit_norm(self, features: pd.DataFrame):
         """计算全局均值方差。"""
         self._feature_mean = features.mean()
+        # 避免标准差为 0 导致除零
         std = features.std().replace(0, 1)
         self._feature_std = std
 
@@ -81,7 +85,7 @@ class QlibFeaturePipeline:
         if self._feature_mean is None or self._feature_std is None:
             raise RuntimeError("标准化参数尚未拟合，请先调用 build()")
         arr = (features - self._feature_mean) / self._feature_std
-        return arr.clip(-5, 5)  # 简单去极值
+        return arr.clip(-5, 5)  # 简单去极值，避免极端噪声
 
     def get_slice(self, start: str, end: str) -> Tuple[pd.DataFrame, pd.Series]:
         """按时间切片返回特征。"""

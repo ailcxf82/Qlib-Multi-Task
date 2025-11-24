@@ -56,6 +56,7 @@ class RollingTrainer:
         valid_offset = pd.DateOffset(months=rolling["valid_months"])
         step = pd.DateOffset(months=rolling["step_months"])
 
+        # cursor 指向验证起点，前推 train_offset 即训练区间
         cursor = start + train_offset
         while cursor + valid_offset <= end:
             train_start = cursor - train_offset
@@ -103,6 +104,7 @@ class RollingTrainer:
                 valid_feat = None
                 valid_lbl = None
 
+            # 逐个训练子模型
             self.lgb.fit(train_feat, train_lbl, valid_feat, valid_lbl)
             self.mlp.fit(train_feat, train_lbl, valid_feat, valid_lbl)
 
@@ -110,6 +112,7 @@ class RollingTrainer:
             valid_pred = valid_leaf = None
             if has_valid:
                 valid_pred, valid_leaf = self.lgb.predict(valid_feat)
+            # residual = label - lgb，用于二级学习
             train_residual = train_lbl - train_pred
             valid_residual = None if not has_valid else valid_lbl - valid_pred
             self.stack.fit(train_leaf, train_residual, valid_leaf, valid_residual)
@@ -131,12 +134,14 @@ class RollingTrainer:
                 }
                 metrics.append(metric)
 
+            # 以验证区间结束日作为模型文件名，方便按日期加载
             tag = window.valid_end.replace("-", "")
             self.lgb.save(self.paths["model_dir"], tag)
             self.mlp.save(self.paths["model_dir"], tag)
             self.stack.save(self.paths["model_dir"], tag)
 
         if metrics:
+            # 记录所有窗口的 IC，用于后续动态加权或评估
             df = pd.DataFrame(metrics)
             df.to_csv(os.path.join(self.paths["log_dir"], "training_metrics.csv"), index=False)
             logger.info("训练指标已保存，共 %d 条记录", len(df))

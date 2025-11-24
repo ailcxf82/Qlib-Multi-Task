@@ -32,10 +32,13 @@ class PortfolioBuilder:
         top_k: int = 100,
     ) -> pd.Series:
         """根据预测得分生成权重。"""
+        # 1. 选取 top_k，使用线性衰减权重
         filtered = scores.dropna().sort_values(ascending=False).head(top_k)
         ranks = filtered.rank(ascending=False, method="first")
         weights = (top_k - ranks + 1) / top_k
+        # 2. 控制整体仓位
         weights = weights / weights.sum() * self.max_position
+        # 3. 单股权重裁剪
         weights = weights.clip(upper=self.max_stock_weight)
         weights = weights / weights.sum() * self.max_position
 
@@ -55,6 +58,7 @@ class PortfolioBuilder:
             if total > limit:
                 scale = limit / total
                 constrained.loc[idx] *= scale
+        # 行业约束后需要再次归一
         constrained = constrained / constrained.sum() * self.max_position
         return constrained
 

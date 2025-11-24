@@ -60,6 +60,7 @@ class PredictorEngine:
             "mlp": mlp_pred,
             "stack": stack_pred,
         }
+        # 根据历史 IC 计算动态权重，兼顾稳定性
         weights = self.weighter.get_weights(ic_histories)
         final_pred = self.weighter.blend(preds, weights)
         return final_pred, preds, weights
@@ -70,6 +71,7 @@ class PredictorEngine:
         df = pd.DataFrame({"final": final_pred})
         for name, series in preds.items():
             df[name] = series
+        # MultiIndex 直接写入 csv，便于后续回测按日期/证券读取
         df.to_csv(out_path, index_label=["datetime", "instrument"])
         logger.info("预测结果已保存: %s", out_path)
 
