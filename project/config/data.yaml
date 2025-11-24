@@ -1,0 +1,26 @@
+qlib:
+  provider_uri: "~/.qlib/qlib_data/cn_data"
+  region: "cn"
+
+data:
+  instruments: "csi300"
+  start_time: "2016-01-01"
+  end_time: "2024-12-31"
+  freq: "day"
+  features:
+    - "$open"
+    - "$high"
+    - "$low"
+    - "$close"
+    - "$volume"
+    - "Ref($close, 1)/$close - 1"
+    - "Ref($volume, 1)/$volume - 1"
+    - "Mean($close, 5)/$close - 1"
+    - "Std($close, 10)"
+  label: "Ref($close, -5)/$close - 1"
+  filter:
+    limit_up: true
+    limit_down: true
+  normalization: "zscore"
+
+

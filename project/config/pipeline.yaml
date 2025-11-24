@@ -1,0 +1,28 @@
+data_config: "config/data.yaml"
+lightgbm_config: "config/model_lgb.yaml"
+mlp_config: "config/model_mlp.yaml"
+stack_config: "config/model_stack.yaml"
+
+rolling:
+  train_months: 24
+  valid_months: 1
+  test_months: 1
+  step_months: 1
+  min_samples: 2000
+
+ic_logging:
+  window: 60
+  half_life: 20
+
+paths:
+  model_dir: "data/models"
+  log_dir: "data/logs"
+  prediction_dir: "data/predictions"
+  backtest_dir: "data/backtest"
+
+portfolio:
+  max_position: 0.3
+  max_stock_weight: 0.05
+  max_industry_weight: 0.2
+  top_k: 50
+
