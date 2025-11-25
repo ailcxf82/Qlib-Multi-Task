@@ -16,9 +16,24 @@ from utils import load_yaml_config
 
 def parse_args():
     parser = argparse.ArgumentParser(description="基于预测结果的简易回测")
-    parser.add_argument("--config", type=str, default="config/pipeline.yaml")
-    parser.add_argument("--prediction", type=str, required=True, help="预测结果 CSV 路径")
-    parser.add_argument("--industry", type=str, default=None, help="行业映射 CSV，包含 instrument, industry 列")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="config/pipeline.yaml",
+        help="pipeline 配置文件路径",
+    )
+    parser.add_argument(
+        "--prediction",
+        type=str,
+        default=None,
+        help="预测结果 CSV 路径（需包含 final 列），默认自动查找最新预测文件",
+    )
+    parser.add_argument(
+        "--industry",
+        type=str,
+        default=None,
+        help="行业映射 CSV，包含 instrument, industry 列",
+    )
     return parser.parse_args()
 
 
@@ -38,19 +53,40 @@ def load_industry(path: Optional[str]) -> Optional[pd.Series]:
     return df.set_index("instrument")["industry"]
 
 
+def _find_latest_prediction(prediction_dir: str) -> str:
+    """自动查找最新的预测文件。"""
+    import glob
+    pattern = os.path.join(prediction_dir, "pred_*.csv")
+    files = glob.glob(pattern)
+    if not files:
+        raise FileNotFoundError(f"在 {prediction_dir} 中未找到预测文件，请先运行 run_predict.py 或显式指定 --prediction")
+    # 按修改时间排序，返回最新的
+    latest = max(files, key=os.path.getmtime)
+    logging.info("自动选择最新预测文件: %s", latest)
+    return latest
+
+
 def main():
     args = parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s")
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     cfg = load_yaml_config(args.config)
-    preds = load_predictions(args.prediction)
+    
+    # 自动查找最新预测文件（如果未指定）
+    prediction_path = args.prediction
+    if prediction_path is None:
+        prediction_dir = cfg["paths"]["prediction_dir"]
+        prediction_path = _find_latest_prediction(prediction_dir)
+    
+    preds = load_predictions(prediction_path)
     instruments = preds.index.get_level_values("instrument").unique()
 
     pipeline = QlibFeaturePipeline(cfg["data_config"])
     pipeline.build()
     _, labels = pipeline.get_all()
     labels = labels.loc[labels.index.isin(preds.index)]
-
+    logging.info("labels: %s", labels)
+    
     industry_map = load_industry(args.industry)
     portfolio_cfg = cfg.get("portfolio", {})
     builder = PortfolioBuilder(

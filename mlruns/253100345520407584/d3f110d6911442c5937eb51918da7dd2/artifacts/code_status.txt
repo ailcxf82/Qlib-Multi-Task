@@ -1,0 +1,96 @@
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   README.md
+	modified:   config/model_stack.yaml
+	modified:   config/pipeline.yaml
+	modified:   data/models/20180131_mlp.pt
+	modified:   data/models/20180131_stack_mlp.pt
+	modified:   data/models/20180228_mlp.pt
+	modified:   data/models/20180228_stack_mlp.pt
+	modified:   data/models/20180331_mlp.pt
+	modified:   data/models/20180331_stack_mlp.pt
+	modified:   data/models/20180430_mlp.pt
+	modified:   data/models/20180430_stack_mlp.pt
+	modified:   data/models/20180531_mlp.pt
+	modified:   data/models/20180531_stack_mlp.pt
+	modified:   data/models/20180630_mlp.pt
+	modified:   data/models/20180630_stack_mlp.pt
+	modified:   data/models/20180731_mlp.pt
+	modified:   data/models/20180731_stack_mlp.pt
+	modified:   data/models/20180831_mlp.pt
+	modified:   data/models/20180831_stack_mlp.pt
+	modified:   data/models/20180930_mlp.pt
+	modified:   data/models/20180930_stack_mlp.pt
+	modified:   data/models/20181031_mlp.pt
+	modified:   data/models/20181031_stack_mlp.pt
+	modified:   data/models/20181130_mlp.pt
+	modified:   data/models/20181130_stack_mlp.pt
+	modified:   data/models/20181231_mlp.pt
+	modified:   data/models/20181231_stack_mlp.pt
+	modified:   data/models/20190131_mlp.pt
+	modified:   data/models/20190131_stack_mlp.pt
+	modified:   data/models/20190228_mlp.pt
+	modified:   data/models/20190228_stack_mlp.pt
+	modified:   data/models/20190331_mlp.pt
+	modified:   data/models/20190331_stack_mlp.pt
+	modified:   data/models/20190430_mlp.pt
+	modified:   data/models/20190430_stack_mlp.pt
+	modified:   data/models/20190531_mlp.pt
+	modified:   data/models/20190531_stack_mlp.pt
+	modified:   data/models/20190630_mlp.pt
+	modified:   data/models/20190630_stack_mlp.pt
+	modified:   data/models/20190731_mlp.pt
+	modified:   data/models/20190731_stack_mlp.pt
+	modified:   data/models/20190831_mlp.pt
+	modified:   data/models/20190831_stack_mlp.pt
+	modified:   data/models/20190930_mlp.pt
+	modified:   data/models/20190930_stack_mlp.pt
+	modified:   data/models/20191031_mlp.pt
+	modified:   data/models/20191031_stack_mlp.pt
+	modified:   data/models/20191130_mlp.pt
+	modified:   data/models/20191130_stack_mlp.pt
+	modified:   data/models/20191231_mlp.pt
+	modified:   data/models/20191231_stack_mlp.pt
+	modified:   data/models/20200131_mlp.pt
+	modified:   data/models/20200131_stack_mlp.pt
+	modified:   data/models/20200229_mlp.pt
+	modified:   data/models/20200229_stack_mlp.pt
+	modified:   data/models/20200331_mlp.pt
+	modified:   data/models/20200331_stack_mlp.pt
+	modified:   data/models/20200430_mlp.pt
+	modified:   data/models/20200430_stack_mlp.pt
+	modified:   data/models/20200531_mlp.pt
+	modified:   data/models/20200531_stack_mlp.pt
+	modified:   data/models/20200630_mlp.pt
+	modified:   data/models/20200630_stack_mlp.pt
+	modified:   data/models/20200731_mlp.pt
+	modified:   data/models/20200731_stack_mlp.pt
+	modified:   data/models/20200831_mlp.pt
+	modified:   data/models/20200831_stack_mlp.pt
+	modified:   data/models/20200930_mlp.pt
+	modified:   data/models/20200930_stack_mlp.pt
+	modified:   feature/__pycache__/qlib_feature_pipeline.cpython-311.pyc
+	modified:   feature/qlib_feature_pipeline.py
+	modified:   models/__pycache__/lightgbm_model.cpython-311.pyc
+	modified:   models/__pycache__/mlp_model.cpython-311.pyc
+	modified:   models/__pycache__/stack_model.cpython-311.pyc
+	modified:   models/stack_model.py
+	modified:   predictor/predictor.py
+	modified:   run_predict.py
+	modified:   trainer/__pycache__/trainer.cpython-311.pyc
+	modified:   trainer/trainer.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	../mlruns/253100345520407584/d2b93a237aba4863ba5933ab31b1d111/
+	../mlruns/253100345520407584/d3f110d6911442c5937eb51918da7dd2/
+	models/__pycache__/ensemble_manager.cpython-311.pyc
+	models/__pycache__/model_registry.cpython-311.pyc
+	models/ensemble_manager.py
+	models/model_registry.py
+
+no changes added to commit (use "git add" and/or "git commit -a")

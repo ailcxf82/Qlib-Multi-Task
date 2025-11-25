@@ -3,6 +3,16 @@ lightgbm_config: "config/model_lgb.yaml"
 mlp_config: "config/model_mlp.yaml"
 stack_config: "config/model_stack.yaml"
 
+ensemble:
+  aggregator: "average"
+  models:
+    - name: "lgb"
+      type: "lightgbm"
+      config_key: "lightgbm_config"
+    - name: "mlp"
+      type: "mlp"
+      config_key: "mlp_config"
+
 rolling:
   train_months: 24
   valid_months: 1

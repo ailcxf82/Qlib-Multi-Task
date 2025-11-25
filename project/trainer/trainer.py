@@ -12,8 +12,7 @@ from typing import Dict, Iterable, List, Tuple
 import pandas as pd
 
 from feature.qlib_feature_pipeline import QlibFeaturePipeline
-from models.lightgbm_model import LightGBMModelWrapper
-from models.mlp_model import MLPRegressor
+from models.ensemble_manager import EnsembleModelManager
 from models.stack_model import LeafStackModel
 from utils import load_yaml_config
 
@@ -43,8 +42,7 @@ class RollingTrainer:
         self.paths = self.cfg["paths"]
         self.data_cfg_path = self.cfg["data_config"]
         self.pipeline = QlibFeaturePipeline(self.data_cfg_path)
-        self.lgb = LightGBMModelWrapper(self.cfg["lightgbm_config"])
-        self.mlp = MLPRegressor(self.cfg["mlp_config"])
+        self.ensemble = EnsembleModelManager(self.cfg, self.cfg.get("ensemble"))
         self.stack = LeafStackModel(self.cfg["stack_config"])
 
     def _generate_windows(self) -> Iterable[Window]:
@@ -104,40 +102,55 @@ class RollingTrainer:
                 valid_feat = None
                 valid_lbl = None
 
-            # 逐个训练子模型
-            self.lgb.fit(train_feat, train_lbl, valid_feat, valid_lbl)
-            self.mlp.fit(train_feat, train_lbl, valid_feat, valid_lbl)
+            # 统一训练多模型
+            self.ensemble.fit(train_feat, train_lbl, valid_feat, valid_lbl)
 
-            train_pred, train_leaf = self.lgb.predict(train_feat)
-            valid_pred = valid_leaf = None
+            _, train_preds, train_aux = self.ensemble.predict(train_feat)
+            lgb_train_pred = train_preds.get("lgb")
+            lgb_train_leaf = train_aux.get("lgb")
+            if lgb_train_pred is None or lgb_train_leaf is None:
+                raise RuntimeError("LeafStackModel 需要 LightGBM 输出，请在 ensemble.models 中包含 `lgb`")
+            valid_blend = valid_preds = valid_aux = None
             if has_valid:
-                valid_pred, valid_leaf = self.lgb.predict(valid_feat)
+                valid_blend, valid_preds, valid_aux = self.ensemble.predict(valid_feat)
+
+            valid_pred = valid_leaf = None
+            if valid_preds is not None:
+                valid_pred = valid_preds.get("lgb")
+            if valid_aux is not None:
+                valid_leaf = valid_aux.get("lgb")
+
             # residual = label - lgb，用于二级学习
-            train_residual = train_lbl - train_pred
-            valid_residual = None if not has_valid else valid_lbl - valid_pred
+            train_leaf = lgb_train_leaf
+            train_residual = train_lbl - lgb_train_pred
+            valid_residual = None if (not has_valid or valid_pred is None) else valid_lbl - valid_pred
             self.stack.fit(train_leaf, train_residual, valid_leaf, valid_residual)
 
             # 计算验证集 IC
             if has_valid:
-                mlp_valid_pred = self.mlp.predict(valid_feat)
-                stack_residual = self.stack.predict_residual(valid_leaf, valid_feat.index)
-                stack_valid_pred = self.stack.fuse(valid_pred, stack_residual)
+                mlp_valid_pred = valid_preds.get("mlp") if valid_preds is not None else None
+                stack_residual = self.stack.predict_residual(valid_leaf, valid_feat.index) if valid_leaf is not None else None
+                stack_valid_pred = (
+                    self.stack.fuse(valid_pred, stack_residual)
+                    if (valid_pred is not None and stack_residual is not None)
+                    else None
+                )
                 metric = {
                     "window": idx,
                     "train_start": window.train_start,
                     "train_end": window.train_end,
                     "valid_start": window.valid_start,
                     "valid_end": window.valid_end,
-                    "ic_lgb": _rank_ic(valid_pred, valid_lbl),
-                    "ic_mlp": _rank_ic(mlp_valid_pred, valid_lbl),
-                    "ic_stack": _rank_ic(stack_valid_pred, valid_lbl),
+                    "ic_lgb": _rank_ic(valid_pred, valid_lbl) if valid_pred is not None else float("nan"),
+                    "ic_mlp": _rank_ic(mlp_valid_pred, valid_lbl) if mlp_valid_pred is not None else float("nan"),
+                    "ic_stack": _rank_ic(stack_valid_pred, valid_lbl) if stack_valid_pred is not None else float("nan"),
+                    "ic_qlib_ensemble": _rank_ic(valid_blend, valid_lbl) if valid_blend is not None else float("nan"),
                 }
                 metrics.append(metric)
 
             # 以验证区间结束日作为模型文件名，方便按日期加载
             tag = window.valid_end.replace("-", "")
-            self.lgb.save(self.paths["model_dir"], tag)
-            self.mlp.save(self.paths["model_dir"], tag)
+            self.ensemble.save(self.paths["model_dir"], tag)
             self.stack.save(self.paths["model_dir"], tag)
 
         if metrics:

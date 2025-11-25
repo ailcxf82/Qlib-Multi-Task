@@ -25,7 +25,8 @@ project/
 - **模型体系**：
   - `LightGBMModelWrapper` 封装 qlib 原生 LightGBM，输出预测值与叶子索引；
   - `MLPRegressor` 由 PyTorch 实现的一层或多层感知机；
-  - `LeafStackModel` 接收 LGB 叶子 one-hot 编码，用 MLP 学习 residual 并与原 LGB 预测融合。
+  - `LeafStackModel` 支持 OneHot 或哈希压缩方式处理 LGB 叶子索引，用 MLP 学习 residual 并与原 LGB 预测融合，避免稀疏矩阵爆内存。
+- **多模型协同**：`EnsembleModelManager` 基于 qlib `AverageEnsemble` 统一训练/推理 LGB、MLP 等模型，可通过 `pipeline.yaml -> ensemble` 增减模型并获取融合预测。
 - **IC 动态加权**：`RankICDynamicWeighter` 基于 rank-IC 半衰期均值与波动计算权重，支持 min/max/负值裁剪。
 - **组合构建**：`PortfolioBuilder` 设定最大仓位、单股权重与行业敞口，生成最终权重。
 - **滚动训练**：`RollingTrainer` 按 `pipeline.yaml` 的窗口设置执行训练、评估、模型保存以及训练日志记录。
@@ -56,8 +57,8 @@ project/
 - `config/data.yaml`：数据提供者地址、交易品种、时间区间、因子列表、标签与标准化方式。
 - `config/model_lgb.yaml`：LightGBM 超参（叶子数、学习率、bagging 等）。
 - `config/model_mlp.yaml`：MLP 网络结构、训练批量、学习率等。
-- `config/model_stack.yaml`：Stack MLP 结构及 `alpha`（融合权重）。
-- `config/pipeline.yaml`：滚动窗口长度、IC 动态加权窗口、模型/日志/预测/回测路径，以及组合约束参数。
+- `config/model_stack.yaml`：Stack MLP 结构、`alpha`（融合权重）、`encoding/hash_dim` 等叶子编码策略。
+- `config/pipeline.yaml`：滚动窗口长度、IC 动态加权窗口、模型/日志/预测/回测路径，以及组合约束参数；新增 `ensemble` 区块用于声明多模型名单、配置引用与 qlib 融合策略。
 
 ## 5. 扩展建议
 
@@ -65,6 +66,7 @@ project/
 - **更丰富的模型**：可在 `models/` 中新增模型并在训练/预测器中注册。
 - **真实回测**：目前 `run_backtest.py` 基于标签收益，如需交易级回测，可结合 qlib 内置 `backtest` 模块或接入实盘模拟。
 - **线上部署**：可将 `run_predict.py` 嵌入任务调度，定期生成预测与组合信号，再结合 OMS/交易执行。
+- **工程细节**：详见 `docs/ENGINEERING.md`，包含信号解释、回测流程等代码级文档。
 
 ## 6. 依赖环境
 

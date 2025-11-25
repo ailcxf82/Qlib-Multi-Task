@@ -1,0 +1,274 @@
+diff --git a/project/README.md b/project/README.md
+index 46f752b..adcb54b 100644
+--- a/project/README.md
++++ b/project/README.md
+@@ -26,6 +26,7 @@ project/
+   - `LightGBMModelWrapper` 封装 qlib 原生 LightGBM，输出预测值与叶子索引；
+   - `MLPRegressor` 由 PyTorch 实现的一层或多层感知机；
+   - `LeafStackModel` 接收 LGB 叶子 one-hot 编码，用 MLP 学习 residual 并与原 LGB 预测融合。
++- **多模型协同**：`EnsembleModelManager` 基于 qlib `AverageEnsemble` 统一训练/推理 LGB、MLP 等模型，可通过 `pipeline.yaml -> ensemble` 增减模型并获取融合预测。
+ - **IC 动态加权**：`RankICDynamicWeighter` 基于 rank-IC 半衰期均值与波动计算权重，支持 min/max/负值裁剪。
+ - **组合构建**：`PortfolioBuilder` 设定最大仓位、单股权重与行业敞口，生成最终权重。
+ - **滚动训练**：`RollingTrainer` 按 `pipeline.yaml` 的窗口设置执行训练、评估、模型保存以及训练日志记录。
+@@ -57,7 +58,7 @@ project/
+ - `config/model_lgb.yaml`：LightGBM 超参（叶子数、学习率、bagging 等）。
+ - `config/model_mlp.yaml`：MLP 网络结构、训练批量、学习率等。
+ - `config/model_stack.yaml`：Stack MLP 结构及 `alpha`（融合权重）。
+-- `config/pipeline.yaml`：滚动窗口长度、IC 动态加权窗口、模型/日志/预测/回测路径，以及组合约束参数。
++- `config/pipeline.yaml`：滚动窗口长度、IC 动态加权窗口、模型/日志/预测/回测路径，以及组合约束参数；新增 `ensemble` 区块用于声明多模型名单、配置引用与 qlib 融合策略。
+ 
+ ## 5. 扩展建议
+ 
+diff --git a/project/config/pipeline.yaml b/project/config/pipeline.yaml
+index 5228c6a..9ab78dc 100644
+--- a/project/config/pipeline.yaml
++++ b/project/config/pipeline.yaml
+@@ -3,6 +3,16 @@ lightgbm_config: "config/model_lgb.yaml"
+ mlp_config: "config/model_mlp.yaml"
+ stack_config: "config/model_stack.yaml"
+ 
++ensemble:
++  aggregator: "average"
++  models:
++    - name: "lgb"
++      type: "lightgbm"
++      config_key: "lightgbm_config"
++    - name: "mlp"
++      type: "mlp"
++      config_key: "mlp_config"
++
+ rolling:
+   train_months: 24
+   valid_months: 1
+diff --git a/project/feature/__pycache__/qlib_feature_pipeline.cpython-311.pyc b/project/feature/__pycache__/qlib_feature_pipeline.cpython-311.pyc
+index d64ecc8..35e8ce0 100644
+Binary files a/project/feature/__pycache__/qlib_feature_pipeline.cpython-311.pyc and b/project/feature/__pycache__/qlib_feature_pipeline.cpython-311.pyc differ
+diff --git a/project/feature/qlib_feature_pipeline.py b/project/feature/qlib_feature_pipeline.py
+index c1b297f..767faf4 100644
+--- a/project/feature/qlib_feature_pipeline.py
++++ b/project/feature/qlib_feature_pipeline.py
+@@ -18,6 +18,7 @@ from qlib.data import D
+ from utils import load_yaml_config
+ 
+ logger = logging.getLogger(__name__)
++_QLIB_INITIALIZED = False
+ 
+ 
+ class QlibFeaturePipeline:
+@@ -34,7 +35,16 @@ class QlibFeaturePipeline:
+ 
+     def _init_qlib(self):
+         qlib_cfg = self.config.get("qlib", {})
+-        if qlib.is_initialized():
++        global _QLIB_INITIALIZED
++        already_initialized = False
++        if hasattr(qlib, "is_initialized"):
++            try:
++                already_initialized = bool(qlib.is_initialized())
++            except Exception:
++                already_initialized = _QLIB_INITIALIZED
++        else:
++            already_initialized = _QLIB_INITIALIZED
++        if already_initialized:
+             # 在 notebook/调试环境中可能重复调用，避免重复初始化
+             return
+         logger.info("初始化 qlib，数据目录: %s", qlib_cfg.get("provider_uri"))
+@@ -43,6 +53,7 @@ class QlibFeaturePipeline:
+             region=qlib_cfg.get("region", "cn"),
+             expression_cache=None,
+         )
++        _QLIB_INITIALIZED = True
+ 
+     def build(self):
+         """执行特征提取。"""
+diff --git a/project/models/__pycache__/lightgbm_model.cpython-311.pyc b/project/models/__pycache__/lightgbm_model.cpython-311.pyc
+index c0d30e3..bbb608c 100644
+Binary files a/project/models/__pycache__/lightgbm_model.cpython-311.pyc and b/project/models/__pycache__/lightgbm_model.cpython-311.pyc differ
+diff --git a/project/models/__pycache__/mlp_model.cpython-311.pyc b/project/models/__pycache__/mlp_model.cpython-311.pyc
+index fa4855c..2b7135d 100644
+Binary files a/project/models/__pycache__/mlp_model.cpython-311.pyc and b/project/models/__pycache__/mlp_model.cpython-311.pyc differ
+diff --git a/project/models/__pycache__/stack_model.cpython-311.pyc b/project/models/__pycache__/stack_model.cpython-311.pyc
+index e624162..cab1fa3 100644
+Binary files a/project/models/__pycache__/stack_model.cpython-311.pyc and b/project/models/__pycache__/stack_model.cpython-311.pyc differ
+diff --git a/project/predictor/predictor.py b/project/predictor/predictor.py
+index 1a1a1f1..1c47e9f 100644
+--- a/project/predictor/predictor.py
++++ b/project/predictor/predictor.py
+@@ -10,8 +10,7 @@ from typing import Dict, Tuple
+ 
+ import pandas as pd
+ 
+-from models.lightgbm_model import LightGBMModelWrapper
+-from models.mlp_model import MLPRegressor
++from models.ensemble_manager import EnsembleModelManager
+ from models.stack_model import LeafStackModel
+ from predictor.weight_dynamic import RankICDynamicWeighter
+ from utils import load_yaml_config
+@@ -26,8 +25,7 @@ class PredictorEngine:
+         cfg = load_yaml_config(pipeline_config)
+         self.cfg = cfg
+         self.paths = cfg["paths"]
+-        self.lgb = LightGBMModelWrapper(cfg["lightgbm_config"])
+-        self.mlp = MLPRegressor(cfg["mlp_config"])
++        self.ensemble = EnsembleModelManager(cfg, cfg.get("ensemble"))
+         self.stack = LeafStackModel(cfg["stack_config"])
+         ic_cfg = cfg.get("ic_logging", {})
+         self.weighter = RankICDynamicWeighter(
+@@ -41,8 +39,7 @@ class PredictorEngine:
+     def load_models(self, tag: str):
+         model_dir = self.paths["model_dir"]
+         logger.info("加载模型，标识: %s", tag)
+-        self.lgb.load(model_dir, tag)
+-        self.mlp.load(model_dir, tag)
++        self.ensemble.load(model_dir, tag)
+         self.stack.load(model_dir, tag)
+ 
+     def predict(
+@@ -51,15 +48,17 @@ class PredictorEngine:
+         ic_histories: Dict[str, pd.Series],
+     ) -> Tuple[pd.Series, Dict[str, pd.Series], Dict[str, float]]:
+         """返回融合预测、各模型预测以及权重。"""
+-        lgb_pred, leaf = self.lgb.predict(features)
+-        mlp_pred = self.mlp.predict(features)
+-        residual_pred = self.stack.predict_residual(leaf, features.index)
++        blend_pred, base_preds, aux = self.ensemble.predict(features)
++        lgb_pred = base_preds.get("lgb")
++        lgb_leaf = aux.get("lgb")
++        if lgb_pred is None or lgb_leaf is None:
++            raise RuntimeError("需要 LightGBM 预测以驱动 Stack 模型，请检查 ensemble 配置")
++        residual_pred = self.stack.predict_residual(lgb_leaf, features.index)
+         stack_pred = self.stack.fuse(lgb_pred, residual_pred)
+-        preds = {
+-            "lgb": lgb_pred,
+-            "mlp": mlp_pred,
+-            "stack": stack_pred,
+-        }
++        preds = dict(base_preds)
++        preds["stack"] = stack_pred
++        if blend_pred is not None:
++            preds["qlib_ensemble"] = blend_pred
+         # 根据历史 IC 计算动态权重，兼顾稳定性
+         weights = self.weighter.get_weights(ic_histories)
+         final_pred = self.weighter.blend(preds, weights)
+diff --git a/project/run_predict.py b/project/run_predict.py
+index 0ad6b41..bca74a9 100644
+--- a/project/run_predict.py
++++ b/project/run_predict.py
+@@ -46,13 +46,17 @@ def _load_ic_histories(log_path: str) -> Dict[str, pd.Series]:
+     if not os.path.exists(log_path):
+         today = pd.Timestamp.today()
+         base = pd.Series([0.1], index=[today])
+-        return {"lgb": base, "mlp": base, "stack": base}
++        return {"lgb": base, "mlp": base, "stack": base, "qlib_ensemble": base}
+     df = pd.read_csv(log_path, parse_dates=["valid_end"])
+     histories = {
+         "lgb": pd.Series(df["ic_lgb"].values, index=df["valid_end"]),
+         "mlp": pd.Series(df["ic_mlp"].values, index=df["valid_end"]),
+         "stack": pd.Series(df["ic_stack"].values, index=df["valid_end"]),
+     }
++    if "ic_qlib_ensemble" in df.columns:
++        histories["qlib_ensemble"] = pd.Series(df["ic_qlib_ensemble"].values, index=df["valid_end"])
++    else:
++        histories["qlib_ensemble"] = histories["lgb"]
+     return histories
+ 
+ 
+diff --git a/project/trainer/__pycache__/trainer.cpython-311.pyc b/project/trainer/__pycache__/trainer.cpython-311.pyc
+index 506b197..095cab1 100644
+Binary files a/project/trainer/__pycache__/trainer.cpython-311.pyc and b/project/trainer/__pycache__/trainer.cpython-311.pyc differ
+diff --git a/project/trainer/trainer.py b/project/trainer/trainer.py
+index 9d8211e..2d0c5e9 100644
+--- a/project/trainer/trainer.py
++++ b/project/trainer/trainer.py
+@@ -12,8 +12,7 @@ from typing import Dict, Iterable, List, Tuple
+ import pandas as pd
+ 
+ from feature.qlib_feature_pipeline import QlibFeaturePipeline
+-from models.lightgbm_model import LightGBMModelWrapper
+-from models.mlp_model import MLPRegressor
++from models.ensemble_manager import EnsembleModelManager
+ from models.stack_model import LeafStackModel
+ from utils import load_yaml_config
+ 
+@@ -43,8 +42,7 @@ class RollingTrainer:
+         self.paths = self.cfg["paths"]
+         self.data_cfg_path = self.cfg["data_config"]
+         self.pipeline = QlibFeaturePipeline(self.data_cfg_path)
+-        self.lgb = LightGBMModelWrapper(self.cfg["lightgbm_config"])
+-        self.mlp = MLPRegressor(self.cfg["mlp_config"])
++        self.ensemble = EnsembleModelManager(self.cfg, self.cfg.get("ensemble"))
+         self.stack = LeafStackModel(self.cfg["stack_config"])
+ 
+     def _generate_windows(self) -> Iterable[Window]:
+@@ -104,40 +102,55 @@ class RollingTrainer:
+                 valid_feat = None
+                 valid_lbl = None
+ 
+-            # 逐个训练子模型
+-            self.lgb.fit(train_feat, train_lbl, valid_feat, valid_lbl)
+-            self.mlp.fit(train_feat, train_lbl, valid_feat, valid_lbl)
++            # 统一训练多模型
++            self.ensemble.fit(train_feat, train_lbl, valid_feat, valid_lbl)
+ 
+-            train_pred, train_leaf = self.lgb.predict(train_feat)
+-            valid_pred = valid_leaf = None
++            _, train_preds, train_aux = self.ensemble.predict(train_feat)
++            lgb_train_pred = train_preds.get("lgb")
++            lgb_train_leaf = train_aux.get("lgb")
++            if lgb_train_pred is None or lgb_train_leaf is None:
++                raise RuntimeError("LeafStackModel 需要 LightGBM 输出，请在 ensemble.models 中包含 `lgb`")
++            valid_blend = valid_preds = valid_aux = None
+             if has_valid:
+-                valid_pred, valid_leaf = self.lgb.predict(valid_feat)
++                valid_blend, valid_preds, valid_aux = self.ensemble.predict(valid_feat)
++
++            valid_pred = valid_leaf = None
++            if valid_preds is not None:
++                valid_pred = valid_preds.get("lgb")
++            if valid_aux is not None:
++                valid_leaf = valid_aux.get("lgb")
++
+             # residual = label - lgb，用于二级学习
+-            train_residual = train_lbl - train_pred
+-            valid_residual = None if not has_valid else valid_lbl - valid_pred
++            train_leaf = lgb_train_leaf
++            train_residual = train_lbl - lgb_train_pred
++            valid_residual = None if (not has_valid or valid_pred is None) else valid_lbl - valid_pred
+             self.stack.fit(train_leaf, train_residual, valid_leaf, valid_residual)
+ 
+             # 计算验证集 IC
+             if has_valid:
+-                mlp_valid_pred = self.mlp.predict(valid_feat)
+-                stack_residual = self.stack.predict_residual(valid_leaf, valid_feat.index)
+-                stack_valid_pred = self.stack.fuse(valid_pred, stack_residual)
++                mlp_valid_pred = valid_preds.get("mlp") if valid_preds is not None else None
++                stack_residual = self.stack.predict_residual(valid_leaf, valid_feat.index) if valid_leaf is not None else None
++                stack_valid_pred = (
++                    self.stack.fuse(valid_pred, stack_residual)
++                    if (valid_pred is not None and stack_residual is not None)
++                    else None
++                )
+                 metric = {
+                     "window": idx,
+                     "train_start": window.train_start,
+                     "train_end": window.train_end,
+                     "valid_start": window.valid_start,
+                     "valid_end": window.valid_end,
+-                    "ic_lgb": _rank_ic(valid_pred, valid_lbl),
+-                    "ic_mlp": _rank_ic(mlp_valid_pred, valid_lbl),
+-                    "ic_stack": _rank_ic(stack_valid_pred, valid_lbl),
++                    "ic_lgb": _rank_ic(valid_pred, valid_lbl) if valid_pred is not None else float("nan"),
++                    "ic_mlp": _rank_ic(mlp_valid_pred, valid_lbl) if mlp_valid_pred is not None else float("nan"),
++                    "ic_stack": _rank_ic(stack_valid_pred, valid_lbl) if stack_valid_pred is not None else float("nan"),
++                    "ic_qlib_ensemble": _rank_ic(valid_blend, valid_lbl) if valid_blend is not None else float("nan"),
+                 }
+                 metrics.append(metric)
+ 
+             # 以验证区间结束日作为模型文件名，方便按日期加载
+             tag = window.valid_end.replace("-", "")
+-            self.lgb.save(self.paths["model_dir"], tag)
+-            self.mlp.save(self.paths["model_dir"], tag)
++            self.ensemble.save(self.paths["model_dir"], tag)
+             self.stack.save(self.paths["model_dir"], tag)
+ 
+         if metrics:

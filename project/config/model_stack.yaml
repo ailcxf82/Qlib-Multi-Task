@@ -1,5 +1,7 @@
 stack:
   alpha: 0.5
+  encoding: "hashing"   # 可选 onehot/hash- based，默认哈希压缩
+  hash_dim: 1024
   hidden_dims: [256, 128]
   dropout: 0.1
   activation: "relu"

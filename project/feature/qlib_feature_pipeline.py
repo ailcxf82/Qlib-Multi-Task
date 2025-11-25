@@ -18,6 +18,7 @@ from qlib.data import D
 from utils import load_yaml_config
 
 logger = logging.getLogger(__name__)
+_QLIB_INITIALIZED = False
 
 
 class QlibFeaturePipeline:
@@ -34,7 +35,16 @@ class QlibFeaturePipeline:
 
     def _init_qlib(self):
         qlib_cfg = self.config.get("qlib", {})
-        if qlib.is_initialized():
+        global _QLIB_INITIALIZED
+        already_initialized = False
+        if hasattr(qlib, "is_initialized"):
+            try:
+                already_initialized = bool(qlib.is_initialized())
+            except Exception:
+                already_initialized = _QLIB_INITIALIZED
+        else:
+            already_initialized = _QLIB_INITIALIZED
+        if already_initialized:
             # 在 notebook/调试环境中可能重复调用，避免重复初始化
             return
         logger.info("初始化 qlib，数据目录: %s", qlib_cfg.get("provider_uri"))
@@ -43,6 +53,7 @@ class QlibFeaturePipeline:
             region=qlib_cfg.get("region", "cn"),
             expression_cache=None,
         )
+        _QLIB_INITIALIZED = True
 
     def build(self):
         """执行特征提取。"""
@@ -59,6 +70,9 @@ class QlibFeaturePipeline:
 
         feature_panel.columns = feats
         label_series = label_panel.iloc[:, 0].rename("label")
+
+        feature_panel = self._normalize_index(feature_panel)
+        label_series = self._normalize_index(label_series)
 
         # 基础对齐
         # inner join + dropna 保证特征、标签完全对齐
@@ -125,4 +139,27 @@ class QlibFeaturePipeline:
         if isinstance(inst_conf, (list, tuple)):
             return list(inst_conf)
         raise ValueError(f"不支持的股票池配置类型: {type(inst_conf)}")
+
+    @staticmethod
+    def _normalize_index(data: Union[pd.DataFrame, pd.Series]):
+        """统一索引为 (datetime, instrument) 顺序，便于与预测/标签对齐。"""
+        idx = data.index
+        if not isinstance(idx, pd.MultiIndex) or idx.nlevels < 2:
+            return data
+        names = list(idx.names)
+        if names == ["datetime", "instrument"]:
+            return data.sort_index()
+        if "datetime" in names and "instrument" in names:
+            order = [names.index("datetime"), names.index("instrument")] + [
+                i for i in range(len(names)) if i not in (names.index("datetime"), names.index("instrument"))
+            ]
+            data = data.reorder_levels(order)
+        else:
+            # 默认交换前两个层级
+            data = data.reorder_levels(list(range(idx.nlevels))[::-1])
+        new_names = list(data.index.names)
+        if len(new_names) >= 2:
+            new_names[0], new_names[1] = "datetime", "instrument"
+            data.index = data.index.set_names(new_names)
+        return data.sort_index()
 
