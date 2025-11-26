@@ -96,6 +96,7 @@ def main():
     )
 
     results = []
+    detail_frames = []
     for dt in sorted(preds.index.get_level_values("datetime").unique()):
         score = preds.xs(dt)
         try:
@@ -111,6 +112,17 @@ def main():
             continue
         ret = (weights.loc[realized.index] * realized).sum()
         results.append({"date": dt, "return": ret})
+        detail = pd.DataFrame(
+            {
+                "date": dt,
+                "instrument": realized.index,
+                "signal": score.reindex(realized.index).values,
+                "weight": weights.reindex(realized.index).values,
+                "label": realized.values,
+            }
+        )
+        detail["contribution"] = detail["weight"] * detail["label"]
+        detail_frames.append(detail)
 
     if not results:
         logging.warning("未生成任何回测记录")
@@ -130,6 +142,11 @@ def main():
     out_path = os.path.join(cfg["paths"]["backtest_dir"], "backtest_result.csv")
     df.to_csv(out_path, index=False)
     logging.info("回测完成，结果写入 %s", out_path)
+    if detail_frames:
+        detail_df = pd.concat(detail_frames, ignore_index=True)
+        detail_path = os.path.join(cfg["paths"]["backtest_dir"], "backtest_detail.csv")
+        detail_df.to_csv(detail_path, index=False)
+        logging.info("投资明细写入 %s", detail_path)
     logging.info("统计指标: %s", stats)
 
 

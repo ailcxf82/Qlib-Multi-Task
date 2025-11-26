@@ -1,0 +1,271 @@
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   data/models/20180131_lgb.txt
+	modified:   data/models/20180131_mlp.pt
+	modified:   data/models/20180131_stack_mlp.pt
+	modified:   data/models/20180228_lgb.txt
+	modified:   data/models/20180228_mlp.pt
+	modified:   data/models/20180228_stack_mlp.pt
+	modified:   data/models/20180331_lgb.txt
+	modified:   data/models/20180331_mlp.pt
+	modified:   data/models/20180331_stack_mlp.pt
+	modified:   data/models/20180430_lgb.txt
+	modified:   data/models/20180430_mlp.pt
+	modified:   data/models/20180430_stack_mlp.pt
+	modified:   data/models/20180531_lgb.txt
+	modified:   data/models/20180531_mlp.pt
+	modified:   data/models/20180531_stack_mlp.pt
+	modified:   data/models/20180630_lgb.txt
+	modified:   data/models/20180630_mlp.pt
+	modified:   data/models/20180630_stack_mlp.pt
+	modified:   data/models/20180731_lgb.txt
+	modified:   data/models/20180731_mlp.pt
+	modified:   data/models/20180731_stack_mlp.pt
+	modified:   data/models/20180831_lgb.txt
+	modified:   data/models/20180831_mlp.pt
+	modified:   data/models/20180831_stack_mlp.pt
+	modified:   data/models/20180930_lgb.txt
+	modified:   data/models/20180930_mlp.pt
+	modified:   data/models/20180930_stack_mlp.pt
+	modified:   data/models/20181031_lgb.txt
+	modified:   data/models/20181031_mlp.pt
+	modified:   data/models/20181031_stack_mlp.pt
+	modified:   data/models/20181130_lgb.txt
+	modified:   data/models/20181130_mlp.pt
+	modified:   data/models/20181130_stack_mlp.pt
+	modified:   data/models/20181231_lgb.txt
+	modified:   data/models/20181231_mlp.pt
+	modified:   data/models/20181231_stack_mlp.pt
+	modified:   data/models/20190131_lgb.txt
+	modified:   data/models/20190131_mlp.pt
+	modified:   data/models/20190131_stack_mlp.pt
+	modified:   data/models/20190228_lgb.txt
+	modified:   data/models/20190228_mlp.pt
+	modified:   data/models/20190228_stack_mlp.pt
+	modified:   data/models/20190331_lgb.txt
+	modified:   data/models/20190331_mlp.pt
+	modified:   data/models/20190331_stack_mlp.pt
+	modified:   data/models/20190430_lgb.txt
+	modified:   data/models/20190430_mlp.pt
+	modified:   data/models/20190430_stack_mlp.pt
+	modified:   data/models/20190531_lgb.txt
+	modified:   data/models/20190531_mlp.pt
+	modified:   data/models/20190531_stack_mlp.pt
+	modified:   data/models/20190630_lgb.txt
+	modified:   data/models/20190630_mlp.pt
+	modified:   data/models/20190630_stack_mlp.pt
+	modified:   data/models/20190731_lgb.txt
+	modified:   data/models/20190731_mlp.pt
+	modified:   data/models/20190731_stack_mlp.pt
+	modified:   data/models/20190831_lgb.txt
+	modified:   data/models/20190831_mlp.pt
+	modified:   data/models/20190831_stack_mlp.pt
+	modified:   data/models/20190930_lgb.txt
+	modified:   data/models/20190930_mlp.pt
+	modified:   data/models/20190930_stack_mlp.pt
+	modified:   data/models/20191031_lgb.txt
+	modified:   data/models/20191031_mlp.pt
+	modified:   data/models/20191031_stack_mlp.pt
+	modified:   data/models/20191130_lgb.txt
+	modified:   data/models/20191130_mlp.pt
+	modified:   data/models/20191130_stack_mlp.pt
+	modified:   data/models/20191231_lgb.txt
+	modified:   data/models/20191231_mlp.pt
+	modified:   data/models/20191231_stack_mlp.pt
+	modified:   data/models/20200131_lgb.txt
+	modified:   data/models/20200131_mlp.pt
+	modified:   data/models/20200131_stack_mlp.pt
+	modified:   data/models/20200229_lgb.txt
+	modified:   data/models/20200229_mlp.pt
+	modified:   data/models/20200229_stack_mlp.pt
+	modified:   data/models/20200331_lgb.txt
+	modified:   data/models/20200331_mlp.pt
+	modified:   data/models/20200331_stack_mlp.pt
+	modified:   data/models/20200430_lgb.txt
+	modified:   data/models/20200430_mlp.pt
+	modified:   data/models/20200430_stack_mlp.pt
+	modified:   data/models/20200531_lgb.txt
+	modified:   data/models/20200531_mlp.pt
+	modified:   data/models/20200531_stack_mlp.pt
+	modified:   data/models/20200630_lgb.txt
+	modified:   data/models/20200630_mlp.pt
+	modified:   data/models/20200630_stack_mlp.pt
+	modified:   data/models/20200731_lgb.txt
+	modified:   data/models/20200731_mlp.pt
+	modified:   data/models/20200731_stack_mlp.pt
+	modified:   data/models/20200831_lgb.txt
+	modified:   data/models/20200831_mlp.pt
+	modified:   data/models/20200831_stack_mlp.pt
+	modified:   data/models/20200930_lgb.txt
+	modified:   data/models/20200930_mlp.pt
+	modified:   data/models/20200930_stack_mlp.pt
+	modified:   data/models/20201031_lgb.txt
+	modified:   data/models/20201031_mlp.pt
+	modified:   data/models/20201031_stack_mlp.pt
+	modified:   data/models/20201130_lgb.txt
+	modified:   data/models/20201130_mlp.pt
+	modified:   data/models/20201130_stack_mlp.pt
+	modified:   data/models/20201231_lgb.txt
+	modified:   data/models/20201231_mlp.pt
+	modified:   data/models/20201231_stack_mlp.pt
+	modified:   data/models/20210131_lgb.txt
+	modified:   data/models/20210131_mlp.pt
+	modified:   data/models/20210131_stack_mlp.pt
+	modified:   docs/ENGINEERING.md
+	modified:   feature/__pycache__/qlib_feature_pipeline.cpython-311.pyc
+	modified:   run_backtest.py
+	modified:   trainer/__pycache__/trainer.cpython-311.pyc
+	modified:   trainer/trainer.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	../mlruns/253100345520407584/1df281f66272463e929f738fc6ba95ea/
+	../mlruns/253100345520407584/80fb58f976e149709653c293215913e9/
+	data/backtest/backtest_detail.csv
+	data/logs/
+	data/models/20210228_lgb.txt
+	data/models/20210228_lgb_meta.json
+	data/models/20210228_mlp.pt
+	data/models/20210228_mlp_meta.json
+	data/models/20210228_stack_encoder.json
+	data/models/20210228_stack_mlp.pt
+	data/models/20210228_stack_mlp_meta.json
+	data/models/20210331_lgb.txt
+	data/models/20210331_lgb_meta.json
+	data/models/20210331_mlp.pt
+	data/models/20210331_mlp_meta.json
+	data/models/20210331_stack_encoder.json
+	data/models/20210331_stack_mlp.pt
+	data/models/20210331_stack_mlp_meta.json
+	data/models/20210430_lgb.txt
+	data/models/20210430_lgb_meta.json
+	data/models/20210430_mlp.pt
+	data/models/20210430_mlp_meta.json
+	data/models/20210430_stack_encoder.json
+	data/models/20210430_stack_mlp.pt
+	data/models/20210430_stack_mlp_meta.json
+	data/models/20210531_lgb.txt
+	data/models/20210531_lgb_meta.json
+	data/models/20210531_mlp.pt
+	data/models/20210531_mlp_meta.json
+	data/models/20210531_stack_encoder.json
+	data/models/20210531_stack_mlp.pt
+	data/models/20210531_stack_mlp_meta.json
+	data/models/20210630_lgb.txt
+	data/models/20210630_lgb_meta.json
+	data/models/20210630_mlp.pt
+	data/models/20210630_mlp_meta.json
+	data/models/20210630_stack_encoder.json
+	data/models/20210630_stack_mlp.pt
+	data/models/20210630_stack_mlp_meta.json
+	data/models/20210731_lgb.txt
+	data/models/20210731_lgb_meta.json
+	data/models/20210731_mlp.pt
+	data/models/20210731_mlp_meta.json
+	data/models/20210731_stack_encoder.json
+	data/models/20210731_stack_mlp.pt
+	data/models/20210731_stack_mlp_meta.json
+	data/models/20210831_lgb.txt
+	data/models/20210831_lgb_meta.json
+	data/models/20210831_mlp.pt
+	data/models/20210831_mlp_meta.json
+	data/models/20210831_stack_encoder.json
+	data/models/20210831_stack_mlp.pt
+	data/models/20210831_stack_mlp_meta.json
+	data/models/20210930_lgb.txt
+	data/models/20210930_lgb_meta.json
+	data/models/20210930_mlp.pt
+	data/models/20210930_mlp_meta.json
+	data/models/20210930_stack_encoder.json
+	data/models/20210930_stack_mlp.pt
+	data/models/20210930_stack_mlp_meta.json
+	data/models/20211031_lgb.txt
+	data/models/20211031_lgb_meta.json
+	data/models/20211031_mlp.pt
+	data/models/20211031_mlp_meta.json
+	data/models/20211031_stack_encoder.json
+	data/models/20211031_stack_mlp.pt
+	data/models/20211031_stack_mlp_meta.json
+	data/models/20211130_lgb.txt
+	data/models/20211130_lgb_meta.json
+	data/models/20211130_mlp.pt
+	data/models/20211130_mlp_meta.json
+	data/models/20211130_stack_encoder.json
+	data/models/20211130_stack_mlp.pt
+	data/models/20211130_stack_mlp_meta.json
+	data/models/20211231_lgb.txt
+	data/models/20211231_lgb_meta.json
+	data/models/20211231_mlp.pt
+	data/models/20211231_mlp_meta.json
+	data/models/20211231_stack_encoder.json
+	data/models/20211231_stack_mlp.pt
+	data/models/20211231_stack_mlp_meta.json
+	data/models/20220131_lgb.txt
+	data/models/20220131_lgb_meta.json
+	data/models/20220131_mlp.pt
+	data/models/20220131_mlp_meta.json
+	data/models/20220131_stack_encoder.json
+	data/models/20220131_stack_mlp.pt
+	data/models/20220131_stack_mlp_meta.json
+	data/models/20220228_lgb.txt
+	data/models/20220228_lgb_meta.json
+	data/models/20220228_mlp.pt
+	data/models/20220228_mlp_meta.json
+	data/models/20220228_stack_encoder.json
+	data/models/20220228_stack_mlp.pt
+	data/models/20220228_stack_mlp_meta.json
+	data/models/20220331_lgb.txt
+	data/models/20220331_lgb_meta.json
+	data/models/20220331_mlp.pt
+	data/models/20220331_mlp_meta.json
+	data/models/20220331_stack_encoder.json
+	data/models/20220331_stack_mlp.pt
+	data/models/20220331_stack_mlp_meta.json
+	data/models/20220430_lgb.txt
+	data/models/20220430_lgb_meta.json
+	data/models/20220430_mlp.pt
+	data/models/20220430_mlp_meta.json
+	data/models/20220430_stack_encoder.json
+	data/models/20220430_stack_mlp.pt
+	data/models/20220430_stack_mlp_meta.json
+	data/models/20220531_lgb.txt
+	data/models/20220531_lgb_meta.json
+	data/models/20220531_mlp.pt
+	data/models/20220531_mlp_meta.json
+	data/models/20220531_stack_encoder.json
+	data/models/20220531_stack_mlp.pt
+	data/models/20220531_stack_mlp_meta.json
+	data/models/20220630_lgb.txt
+	data/models/20220630_lgb_meta.json
+	data/models/20220630_mlp.pt
+	data/models/20220630_mlp_meta.json
+	data/models/20220630_stack_encoder.json
+	data/models/20220630_stack_mlp.pt
+	data/models/20220630_stack_mlp_meta.json
+	data/models/20220731_lgb.txt
+	data/models/20220731_lgb_meta.json
+	data/models/20220731_mlp.pt
+	data/models/20220731_mlp_meta.json
+	data/models/20220731_stack_encoder.json
+	data/models/20220731_stack_mlp.pt
+	data/models/20220731_stack_mlp_meta.json
+	data/models/20220831_lgb.txt
+	data/models/20220831_lgb_meta.json
+	data/models/20220831_mlp.pt
+	data/models/20220831_mlp_meta.json
+	data/models/20220831_stack_encoder.json
+	data/models/20220831_stack_mlp.pt
+	data/models/20220831_stack_mlp_meta.json
+	data/models/20220930_lgb.txt
+	data/models/20220930_lgb_meta.json
+	data/models/20220930_mlp.pt
+	data/models/20220930_mlp_meta.json
+	data/models/20220930_stack_encoder.json
+	data/models/20220930_stack_mlp.pt
+	data/models/20220930_stack_mlp_meta.json
+
+no changes added to commit (use "git add" and/or "git commit -a")

@@ -76,10 +76,30 @@ class RollingTrainer:
         start: str,
         end: str,
     ) -> Tuple[pd.DataFrame, pd.Series]:
+        """按时间范围切片特征和标签。"""
         idx = features.index
-        mask = (idx.get_level_values("datetime") >= start) & (idx.get_level_values("datetime") <= end)
+        if not isinstance(idx, pd.MultiIndex):
+            raise ValueError(f"特征索引应为 MultiIndex，实际为 {type(idx)}")
+        
+        # 确保 datetime 层级存在
+        if "datetime" not in idx.names:
+            raise ValueError(f"索引层级中未找到 'datetime'，当前层级: {idx.names}")
+        
+        # 转换为 Timestamp 以确保正确比较
+        start_ts = pd.Timestamp(start)
+        end_ts = pd.Timestamp(end)
+        
+        datetime_level = idx.get_level_values("datetime")
+        mask = (datetime_level >= start_ts) & (datetime_level <= end_ts)
+        
         feat = features.loc[mask]
         lbl = labels.loc[mask]
+        
+        logger.debug(
+            "切片 [%s, %s]: 特征样本 %d，标签样本 %d",
+            start, end, len(feat), len(lbl)
+        )
+        
         return feat, lbl
 
     def train(self):
@@ -89,23 +109,46 @@ class RollingTrainer:
         os.makedirs(self.paths["log_dir"], exist_ok=True)
         metrics: List[Dict] = []
 
+        # 记录数据时间范围，便于诊断
+        if len(features) > 0:
+            data_start = features.index.get_level_values("datetime").min()
+            data_end = features.index.get_level_values("datetime").max()
+            logger.info("特征数据时间范围: %s 至 %s，共 %d 条记录", data_start, data_end, len(features))
+        
         for idx, window in enumerate(self._generate_windows()):
-            logger.info("==== 滚动窗口 %d: %s -> %s ====", idx, window.train_start, window.valid_end)
+            logger.info("==== 滚动窗口 %d: 训练 [%s, %s] 验证 [%s, %s] ====", 
+                       idx, window.train_start, window.train_end, window.valid_start, window.valid_end)
             train_feat, train_lbl = self._slice(features, labels, window.train_start, window.train_end)
             valid_feat, valid_lbl = self._slice(features, labels, window.valid_start, window.valid_end)
+            
             if len(train_feat) < self.cfg["rolling"].get("min_samples", 1000):
-                logger.warning("训练样本不足，跳过该窗口")
+                logger.warning("训练样本不足 (%d < %d)，跳过该窗口", 
+                             len(train_feat), self.cfg["rolling"].get("min_samples", 1000))
                 continue
+            
             has_valid = valid_feat is not None and not valid_feat.empty and valid_lbl is not None and not valid_lbl.empty
             if not has_valid:
-                logger.warning("窗口 %d 验证集为空或不足，退化为仅训练", idx)
+                logger.warning("窗口 %d 验证集为空 (特征: %d, 标签: %d)，退化为仅训练", 
+                             idx, len(valid_feat) if valid_feat is not None else 0, 
+                             len(valid_lbl) if valid_lbl is not None else 0)
+                # 诊断：检查验证时间范围是否在数据范围内
+                if len(features) > 0:
+                    data_start = features.index.get_level_values("datetime").min()
+                    data_end = features.index.get_level_values("datetime").max()
+                    valid_start_ts = pd.Timestamp(window.valid_start)
+                    valid_end_ts = pd.Timestamp(window.valid_end)
+                    if valid_start_ts < data_start or valid_end_ts > data_end:
+                        logger.warning("验证时间范围 [%s, %s] 超出数据范围 [%s, %s]", 
+                                     window.valid_start, window.valid_end, data_start, data_end)
                 valid_feat = None
                 valid_lbl = None
+            else:
+                logger.info("窗口 %d: 训练样本 %d，验证样本 %d", idx, len(train_feat), len(valid_feat))
 
             # 统一训练多模型
             self.ensemble.fit(train_feat, train_lbl, valid_feat, valid_lbl)
 
-            _, train_preds, train_aux = self.ensemble.predict(train_feat)
+            train_blend, train_preds, train_aux = self.ensemble.predict(train_feat)
             lgb_train_pred = train_preds.get("lgb")
             lgb_train_leaf = train_aux.get("lgb")
             if lgb_train_pred is None or lgb_train_leaf is None:
@@ -126,7 +169,19 @@ class RollingTrainer:
             valid_residual = None if (not has_valid or valid_pred is None) else valid_lbl - valid_pred
             self.stack.fit(train_leaf, train_residual, valid_leaf, valid_residual)
 
-            # 计算验证集 IC
+            metric = {
+                "window": idx,
+                "train_start": window.train_start,
+                "train_end": window.train_end,
+                "valid_start": window.valid_start,
+                "valid_end": window.valid_end,
+                "segment": "valid" if has_valid else "train",
+                "ic_lgb": float("nan"),
+                "ic_mlp": float("nan"),
+                "ic_stack": float("nan"),
+                "ic_qlib_ensemble": float("nan"),
+            }
+
             if has_valid:
                 mlp_valid_pred = valid_preds.get("mlp") if valid_preds is not None else None
                 stack_residual = self.stack.predict_residual(valid_leaf, valid_feat.index) if valid_leaf is not None else None
@@ -135,18 +190,26 @@ class RollingTrainer:
                     if (valid_pred is not None and stack_residual is not None)
                     else None
                 )
-                metric = {
-                    "window": idx,
-                    "train_start": window.train_start,
-                    "train_end": window.train_end,
-                    "valid_start": window.valid_start,
-                    "valid_end": window.valid_end,
-                    "ic_lgb": _rank_ic(valid_pred, valid_lbl) if valid_pred is not None else float("nan"),
-                    "ic_mlp": _rank_ic(mlp_valid_pred, valid_lbl) if mlp_valid_pred is not None else float("nan"),
-                    "ic_stack": _rank_ic(stack_valid_pred, valid_lbl) if stack_valid_pred is not None else float("nan"),
-                    "ic_qlib_ensemble": _rank_ic(valid_blend, valid_lbl) if valid_blend is not None else float("nan"),
-                }
-                metrics.append(metric)
+                if valid_pred is not None:
+                    metric["ic_lgb"] = _rank_ic(valid_pred, valid_lbl)
+                if mlp_valid_pred is not None:
+                    metric["ic_mlp"] = _rank_ic(mlp_valid_pred, valid_lbl)
+                if stack_valid_pred is not None:
+                    metric["ic_stack"] = _rank_ic(stack_valid_pred, valid_lbl)
+                if valid_blend is not None:
+                    metric["ic_qlib_ensemble"] = _rank_ic(valid_blend, valid_lbl)
+            else:
+                # 退化为训练集指标，至少保证输出文件存在，便于预测阶段读取
+                mlp_train_pred = train_preds.get("mlp")
+                stack_train_residual = self.stack.predict_residual(train_leaf, train_feat.index)
+                stack_train_pred = self.stack.fuse(lgb_train_pred, stack_train_residual)
+                metric["ic_lgb"] = _rank_ic(lgb_train_pred, train_lbl)
+                if mlp_train_pred is not None:
+                    metric["ic_mlp"] = _rank_ic(mlp_train_pred, train_lbl)
+                metric["ic_stack"] = _rank_ic(stack_train_pred, train_lbl)
+                if train_blend is not None:
+                    metric["ic_qlib_ensemble"] = _rank_ic(train_blend, train_lbl)
+            metrics.append(metric)
 
             # 以验证区间结束日作为模型文件名，方便按日期加载
             tag = window.valid_end.replace("-", "")

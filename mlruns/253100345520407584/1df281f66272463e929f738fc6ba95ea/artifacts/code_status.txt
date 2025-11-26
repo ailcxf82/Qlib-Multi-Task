@@ -1,0 +1,18 @@
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   docs/ENGINEERING.md
+	modified:   feature/__pycache__/qlib_feature_pipeline.cpython-311.pyc
+	modified:   run_backtest.py
+	modified:   trainer/__pycache__/trainer.cpython-311.pyc
+	modified:   trainer/trainer.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	../mlruns/253100345520407584/1df281f66272463e929f738fc6ba95ea/
+	data/backtest/backtest_detail.csv
+
+no changes added to commit (use "git add" and/or "git commit -a")

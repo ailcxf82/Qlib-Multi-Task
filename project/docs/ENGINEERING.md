@@ -54,6 +54,106 @@ metric = {
 
 ---
 
+## 综合信号生成逻辑（代码级）
+
+综合信号 `final` 的形成路径是“多模型预测 →（可选）Qlib Ensemble → Stack 残差修正 → IC 动态加权”。关键代码如下：
+
+### 1. 多模型统一管理
+
+`models/ensemble_manager.py` 根据 `pipeline.yaml -> ensemble` 读取模型清单（默认 LGB/MLP），并统一实例化：
+
+```71:136:project/models/ensemble_manager.py
+specs = (self.ensemble_cfg or {}).get("models") or self._default_specs()
+for spec in specs:
+    model = create_model(spec["type"], cfg_path)
+    self.models[name] = model
+```
+
+`predict()` 会逐一调用模型：
+
+```115:127:project/models/ensemble_manager.py
+output = model.predict(feat)
+if isinstance(output, tuple):
+    preds[name], aux[name] = output       # LGB 返回 (Series, leaf_index)
+else:
+    preds[name] = output                  # 其他模型只返回预测
+if self.aggregator:
+    blended = self.aggregator.aggregate(preds)  # Qlib AverageEnsemble
+```
+
+> `preds` 收集了各模型的 `pd.Series` 预测，`aux` 用于携带 LGB 叶子索引供 Stack 使用。
+
+### 2. Stack 残差模型
+
+`models/stack_model.py` 使用 LightGBM 的 `leaf_index` 作为输入（默认经 FeatureHasher 压缩），训练 residual MLP 并融合：
+
+```39:132:project/models/stack_model.py
+train_df = self._hash_leaf(train_leaf, train_residual.index)
+self.mlp.fit(train_df, train_residual, ...)
+...
+residual_pred = self.stack.predict_residual(lgb_leaf, features.index)
+stack_pred = self.stack.fuse(lgb_pred, residual_pred)  # lgb + alpha * residual
+```
+
+Stack 输出作为 `preds["stack"]`，本质是对 LGB 的结构化错误做二级补偿。
+
+### 3. Qlib Ensemble（可选）
+
+若 `ensemble.aggregator` 配置为 `average` 等，`_QlibAverageAdapter` 会先对所有模型预测做标准化再求均值，生成额外的 `qlib_ensemble` 序列：
+
+```16:34:project/models/ensemble_manager.py
+formatted = {name: series.to_frame(name) for ...}
+result = AverageEnsemble()(formatted)
+return result.mean(axis=1).rename("qlib_ensemble")
+```
+
+这一列主要用于观察纯粹的“标准化平均”效果，同时也可以被动态加权模块使用。
+
+### 4. IC 动态加权 → `final`
+
+`predictor/predictor.py` 汇总所有预测后，调用 `RankICDynamicWeighter`：
+
+```45:71:project/predictor/predictor.py
+blend_pred, base_preds, aux = self.ensemble.predict(features)
+preds = dict(base_preds)
+preds["stack"] = stack_pred
+if blend_pred is not None:
+    preds["qlib_ensemble"] = blend_pred
+weights = self.weighter.get_weights(ic_histories)
+final_pred = self.weighter.blend(preds, weights)
+```
+
+`ic_histories` 来自 `data/logs/training_metrics.csv` 的 `ic_lgb/ic_mlp/ic_stack/ic_qlib_ensemble`，`RankICDynamicWeighter` 会计算每条 IC 序列的 IC-IR，并按半衰期、clip/min/max 规则生成权重：
+
+```57:71:project/predictor/weight_dynamic.py
+scores = {name: self._ic_ir(series) for ...}
+scores = {k: max(0, v)} if clip_negative else scores
+weights = normalize_clip(scores, min_weight, max_weight)
+combined = Σ (pred[name] * weights[name])
+```
+
+因此 `final` = `Σ_i weight_i * pred_i`，其中 `pred_i` 包含 LGB、MLP、Stack、qlib_ensemble 等。
+
+### 5. 输出
+
+`save_predictions()` 将 `final` 与各模型列写入 CSV，并统一索引顺序：
+
+```68:75:project/predictor/predictor.py
+df = df.reorder_levels(["datetime", "instrument"]).sort_index()
+df.to_csv(..., index_label=["datetime", "instrument"])
+```
+
+### 6. 优化入口
+
+- 在 `config/pipeline.yaml -> ensemble.models` 增删模型、调整配置。
+- 在 `RankICDynamicWeighter` 中更改半衰期、clip 策略或替换算法。
+- 修改 `LeafStackModel` 的 `encoding/hash_dim` 或 `alpha` 配置，探索不同 residual 方案。
+- 自定义新的 Ensemble 聚合策略，替代默认平均。
+
+通过这些模块，可快速定位综合信号的任何计算阶段并进行优化或排查。
+
+---
+
 ## 回测流程详解
 
 ### 1. 输入数据

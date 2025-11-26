@@ -1,0 +1,14 @@
+artifact_uri: file:D:\lianghuatouzi\Qlib1124\mlruns/253100345520407584/1df281f66272463e929f738fc6ba95ea/artifacts
+end_time: 1764166512663
+entry_point_name: ''
+experiment_id: '253100345520407584'
+lifecycle_stage: active
+run_id: 1df281f66272463e929f738fc6ba95ea
+run_name: mlflow_recorder
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1764160482423
+status: 3
+tags: []
+user_id: Administrator
